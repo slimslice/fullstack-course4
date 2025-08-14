@@ -1,0 +1,16 @@
+We are seeking a Machine Learning Engineer to build and deploy production ML systems. You will design, train, and ship models end-to-end, and partner with product and data teams.
+
+Responsibilities:
+- Own model training, evaluation, and deployment for NLP and recommendation use-cases
+- Build robust data pipelines and feature stores
+- Implement MLOps best practices: CI/CD for models, experiment tracking, monitoring
+- Optimize inference performance and cost
+
+Requirements:
+- Strong Python and software engineering fundamentals
+- Experience with PyTorch or TensorFlow
+- Experience deploying on AWS (SageMaker, ECS/EKS) or GCP
+- Familiarity with Docker, Kubernetes, and Terraform
+- Solid SQL and data modeling skills
+- Experience with vector databases or semantic search is a plus
+- Bonus: LLM tooling (LangChain), prompt engineering, RAG pipelines
