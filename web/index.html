@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>AI Recruiter</title>
+	<style>
+		:root { --bg:#0b1020; --panel:#121a35; --muted:#8aa2c0; --text:#ecf2ff; --brand:#5b8cff; --accent:#7dd3fc; }
+		* { box-sizing: border-box; }
+		body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: var(--bg); color: var(--text); }
+		a { color: var(--accent); }
+		.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+		.header { display:flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+		.title { font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
+		.panel { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; }
+		.grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+		textarea { width: 100%; min-height: 220px; border: 1px solid rgba(255,255,255,0.12); background: #0c1430; color: var(--text); border-radius: 8px; padding: 12px; resize: vertical; }
+		.label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+		.input { width: 100%; background: #0c1430; color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; }
+		.button { display:inline-flex; align-items:center; justify-content:center; gap:8px; background: var(--brand); color:white; border:none; border-radius: 8px; padding:10px 14px; cursor:pointer; font-weight:600; }
+		.button:disabled { opacity: 0.6; cursor: not-allowed; }
+		.actions { display:flex; gap:8px; margin-top: 12px; }
+		.table { width:100%; border-collapse: collapse; margin-top: 16px; }
+		.table th, .table td { text-align:left; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
+		.badge { display:inline-block; background: rgba(125, 211, 252, 0.14); color: var(--accent); border: 1px solid rgba(125, 211, 252, 0.3); border-radius: 999px; padding: 2px 8px; font-size: 12px; margin: 2px 4px 2px 0; }
+		.footer { color: var(--muted); font-size:12px; margin-top: 8px; }
+		.small { color: var(--muted); font-size: 12px; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<div class="title">AI Recruiter</div>
+			<div class="small">Backend: <code>/rank</code> | Data: <code>data/candidates.csv</code></div>
+		</div>
+		<div class="grid">
+			<div class="panel">
+				<div class="label">Job description</div>
+				<textarea id="job" placeholder="Paste a job description here...">We are seeking a Machine Learning Engineer to build and deploy production ML systems. You will design, train, and ship models end-to-end, and partner with product and data teams.
+
+Responsibilities:
+- Own model training, evaluation, and deployment for NLP and recommendation use-cases
+- Build robust data pipelines and feature stores
+- Implement MLOps best practices: CI/CD for models, experiment tracking, monitoring
+- Optimize inference performance and cost
+
+Requirements:
+- Strong Python and software engineering fundamentals
+- Experience with PyTorch or TensorFlow
+- Experience deploying on AWS (SageMaker, ECS/EKS) or GCP
+- Familiarity with Docker, Kubernetes, and Terraform
+- Solid SQL and data modeling skills
+- Experience with vector databases or semantic search is a plus
+- Bonus: LLM tooling (LangChain), prompt engineering, RAG pipelines</textarea>
+				<div class="actions">
+					<button id="rankBtn" class="button">Rank candidates</button>
+					<button id="clearBtn" class="button" style="background:#374151">Clear</button>
+				</div>
+				<div class="footer">Pro tip: Adjust Top K on the right and rank again.</div>
+			</div>
+			<div class="panel">
+				<div class="label">Top K</div>
+				<input id="topk" class="input" type="number" min="1" max="50" value="15" />
+				<div style="height:8px"></div>
+				<div class="label">Dataset</div>
+				<div class="small">Using bundled <code>data/candidates.csv</code>. To use a custom CSV, run the server with a modified path or extend the server to accept uploads.</div>
+			</div>
+		</div>
+
+		<div class="panel" style="margin-top:16px">
+			<div class="label">Results</div>
+			<table class="table" id="resultsTable">
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Candidate</th>
+						<th>Title</th>
+						<th>Score</th>
+						<th>Matched skills</th>
+						<th>Contact</th>
+					</tr>
+				</thead>
+				<tbody id="resultsBody"></tbody>
+			</table>
+		</div>
+	</div>
+
+	<script>
+		const q = (sel) => document.querySelector(sel);
+		const jobEl = q('#job');
+		const topkEl = q('#topk');
+		const resultsBody = q('#resultsBody');
+		const rankBtn = q('#rankBtn');
+		const clearBtn = q('#clearBtn');
+
+		function renderResults(rows) {
+			resultsBody.innerHTML = '';
+			if (!rows || rows.length === 0) {
+				resultsBody.innerHTML = '<tr><td colspan="6" class="small">No results</td></tr>';
+				return;
+			}
+			for (const row of rows) {
+				const c = row.candidate;
+				const tr = document.createElement('tr');
+				const matched = (row.matched_skills || []).map(s => `<span class="badge">${s}</span>`).join('');
+				const contact = [
+					c.linkedin_url ? `<a href="${c.linkedin_url}" target="_blank" rel="noreferrer">LinkedIn</a>` : '',
+					c.email ? `<a href="mailto:${c.email}">Email</a>` : ''
+				].filter(Boolean).join(' · ');
+				tr.innerHTML = `
+					<td>${row.rank}</td>
+					<td>${c.name}</td>
+					<td>${c.title || ''}</td>
+					<td>${row.score.toFixed(4)}</td>
+					<td>${matched}</td>
+					<td>${contact}</td>
+				`;
+				resultsBody.appendChild(tr);
+			}
+		}
+
+		async function rank() {
+			rankBtn.disabled = true;
+			resultsBody.innerHTML = '<tr><td colspan="6" class="small">Ranking...</td></tr>';
+			try {
+				const body = {
+					job_description: jobEl.value,
+					top_k: Math.max(1, Math.min(50, parseInt(topkEl.value || '15', 10) || 15))
+				};
+				const res = await fetch('/rank', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+				const json = await res.json();
+				if (!res.ok) throw new Error(json.error || 'Request failed');
+				renderResults(json.results || []);
+			} catch (err) {
+				resultsBody.innerHTML = `<tr><td colspan="6" class="small">Error: ${String(err)}</td></tr>`;
+			} finally {
+				rankBtn.disabled = false;
+			}
+		}
+
+		rankBtn.addEventListener('click', rank);
+		clearBtn.addEventListener('click', () => { jobEl.value = ''; resultsBody.innerHTML = ''; });
+	</script>
+</body>
+</html>

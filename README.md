@@ -65,3 +65,18 @@ Example JSON body:
 
 - First run downloads the embedding model; allow a minute.
 - No external API keys required.
+
+## Frontend (no installs)
+
+1) Start the simple server
+
+```bash
+python simple_server.py --host 0.0.0.0 --port 8000
+```
+
+2) Open the UI
+
+- Navigate to http://localhost:8000
+- Paste a job description, set Top K, click “Rank candidates”
+
+Note: The UI calls `POST /rank` on the same server and uses the bundled `data/candidates.csv` by default.
